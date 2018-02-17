@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Kickstarter Project Visualisation</title>
+  <meta charset="utf-8" />
+  <style>
+    body {
+      font-family: 'Lato', Arial, Helvetica, sans-serif;
+      font-size: 16px;
+      position: relative;
+    }
+
+    h3 {
+      margin-left: 4px;
+    }
+
+    .arc text {
+      text-anchor: middle;
+    }
+
+    .arc path {
+      stroke: #fff;
+    }
+
+    #pie-chart {
+      background-color: #ffffff;
+      height: 370px;
+      text-shadow: none;
+      margin-right: 0;
+    }
+
+    #pie-chart .total {
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    #pie-chart .units {
+      fill: gray;
+      font-size: 12px;
+    }
+
+    #pie-chart .label {
+      fill: #CCC;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    #pie-chart .value {
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    .toolTip {
+      position: absolute;
+      display: none;
+      width: auto;
+      height: auto;
+      background: none repeat scroll 0 0 white;
+      border: 0 none;
+      border-radius: 8px 8px 8px 8px;
+      box-shadow: -3px 3px 15px #888888;
+      color: black;
+      font: 12px sans-serif;
+      padding: 5px;
+      text-align: center;
+    }
+
+    .bar text {
+      font-size: 1em;
+      font-weight: 300;
+      cursor: default;
+    }
+
+    .axis line {
+      stroke: #AAA;
+      stroke-width: 1;
+    }
+
+    line.median {
+      stroke: #777;
+      stroke-width: 1;
+    }
+
+    .grid .tick {
+      stroke: lightgrey;
+      opacity: 0.7;
+    }
+
+    .grid path {
+      stroke-width: 0;
+    }
+
+    .bar {
+      fill: #74c476;
+    }
+
+    .bar:hover {
+      fill: #a1d99b;
+    }
+
+    .axisR {
+      font: 0.625em sans-serif;
+    }
+
+    .axisL {
+      font: 0.625em sans-serif;
+    }
+
+    .axis {
+      font: 0.625em sans-serif;
+    }
+
+    .axisR path,
+    .axisR line,
+    .axisL path,
+    .axisL line {
+      fill: none;
+      stroke: #000;
+      shape-rendering: crispEdges;
+    }
+
+    .x.axis path {
+      display: none;
+    }
+
+    .chartLine {
+      fill: red;
+      stroke: red;
+    }
+
+    .chartLineText {
+      font: 0.625em sans-serif;
+      pointer-events: none;
+    }
+
+    .barText {
+      font: 0.7em sans-serif;
+      font-weight: 500;
+      color: lightgray;
+      visibility: hidden;
+    }
+
+    a {
+      color: dimgray;
+    }
+
+    .source {
+      font-size: 0.625em;
+      color: grey;
+      line-height: 80%;
+    }
+
+    .prepaired {
+      font-size: 0.625em;
+      color: grey;
+      line-height: 80%;
+    }
+
+    .update {
+      font-size: 0.625em;
+      color: grey;
+      line-height: 80%;
+    }
+
+    .notes {
+      font-size: 0.625em;
+      color: grey;
+      line-height: 80%;
+    }
+
+    .def {
+      font-size: .75em;
+      color: grey;
+    }
+  </style>
+</head>
+
+<body>
+  <script src="../d3.v3.min.js"></script>
+  <div id="graph" style="float: left; width:1200px;margin:0;"></div>
+  <script type="text/javascript">
+    function formatMoney(num) {
+      return num.toString().replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,")
+    };
+
+    var margin = { top: 100, right: 40, bottom: 20, left: 50 },
+      width = 1600 - margin.left - margin.right,
+      height = 600 - margin.top - margin.bottom;
+
+    var x = d3.scale.ordinal()
+      .rangeRoundBands([0, width], .2);
+
+    var y = d3.scale.linear()
+      .range([height, 0]);
+
+    var y2 = d3.scale.linear()
+      .range([height, 0]);
+
+    var xAxis = d3.svg.axis()
+      .scale(x)
+      .orient("bottom");
+
+    var yAxis = d3.svg.axis()
+      .scale(y)
+      .orient("left")
+      .ticks(5);
+
+    var y2Axis = d3.svg.axis()
+      .scale(y2)
+      .orient("right")
+      .ticks(4, "%");
+
+    var svg = d3.select("#graph").append("svg")
+      .attr("width", width + margin.left + margin.right)
+      .attr("height", height + margin.top + margin.bottom)
+      .append("g")
+      .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+    var line = d3.svg.line()
+      .x(function (d) { return x2(d.category); })
+      .y(function (d) { return y2(d.successRate); });
+
+    function roundToOne(num) {//Ensures numbers always display the given number of digits after the decimal
+      return +(Math.round(num + "e+1") + "e-1");
+    };
+
+    updateBars();
+
+    function updateBars() {
+      var formattedData = {}
+      d3.csv("../kickstarter-2016.csv", function (error, rawData) {
+        if (error) throw error;
+        rawData.forEach(function (d) {
+          d.Backers = +d.Backers;
+          if (formattedData[d.Category] == null) {
+            formattedData[d.Category] = { totalNumber: 1, totalBackers: d.Backers, successNumber: 1 };
+          } else {
+            formattedData[d.Category].totalNumber++;
+            formattedData[d.Category].totalBackers += d.Backers;
+            if (d.Status == 'successful')
+              formattedData[d.Category].successNumber++;
+          }
+        })
+
+        //flatted data
+        var data = [];
+        var categories = Object.keys(formattedData);
+        for (var i in categories) {
+          var category = categories[i];
+          data.push({
+            category: category,
+            avgBackers: Math.floor(formattedData[category].totalBackers / formattedData[category].totalNumber * 1.0),
+            successRate: formattedData[category].successNumber / formattedData[category].totalBackers * 100
+          });
+        }
+
+        var min = (d3.min(data, function (d) { return d.avgBackers; }) - (.2 * d3.mean(data, function (d) { return d.avgBackers; })))
+          , min2 = 1.2 * d3.min(data, function (d) { return d.successRate; })
+          , max2 = 1.2 * d3.max(data, function (d) { return d.successRate; })
+
+        if (min < 1) {//sets axis automatically, but uses zero if the min would be close to 0 anyway
+          var min = 0
+        };
+        if (min2 >= 0) {
+          var min2 = -.01
+        };
+        if (max2 <= 0) {
+          var max2 = .01
+        };
+        //Tufte would be proud of this, if he ever saw it. The economic data
+        //of y/y change in employment can take on negitive values, thus we need to
+        // ensure the axis always include negitive and positive values
+
+        x.domain(data.map(function (d) { return d.category; }));
+        y2.domain([min2, max2]);
+        y.domain([min, ((d3.max(data, function (d) { return d.avgBackers / 100; }) * 100) + (.11 * d3.mean(data, function (d) { return d.avgBackers; })))]);
+        //Sets the domain based on the average, making the max .11 times the average greater than the max value, for asthetics only essentually
+
+        if (svg.selectAll(".x.axis")[0].length < 1) {//This stuff only occurs the first time the code is looped through, not subsiquent calls
+          svg.append("g")
+            .attr("class", "x axis")
+            .attr("transform", "translate(0," + height + ")")
+            .call(xAxis);
+
+          svg.append('g')
+            .attr("class", "y axisL")
+            .call(yAxis)
+            .append("text")
+            .attr("transform", "rotate(-90)")
+            .attr("y", 4)
+            .attr("dy", ".71em")
+            .style("text-anchor", "end")
+            .text("Average backers per project");
+
+          svg.append("g")
+            .attr("class", "y axisR")
+            .call(y2Axis)
+            .attr("transform", "translate(" + width + ",0)")
+            .append("text")
+            .attr("transform", "rotate(-90)")
+            .attr("y", -11)
+            .attr("dy", ".71em")
+            .style("text-anchor", "end")
+            .text("Sucess rate per project");
+
+          svg.selectAll(".bar")
+            .data(data)
+            .enter()
+            .append("rect")
+            .attr("class", "bar")
+            .attr("x", function (d) { return x(d.category); })
+            .attr("width", x.rangeBand())
+            .attr("y", function (d) { return y(10e-6); })
+            .attr("height", function (d) { return y(10e-6) })
+            .transition()
+            .duration(1050)
+            .attr("y", function (d) { return y(d.avgBackers); })
+            .attr("height", function (d) { return height - y(d.avgBackers); });
+
+          svg.selectAll(".chartLine")
+            .data(data)
+            .enter()
+            .append("rect")
+            .attr("class", "chartLine")
+            .attr("transform", "translate(" + 20 + ",0)")
+            .attr("width", x.rangeBand() - 40)
+            .attr("x", function (d) { return x(d.category); })
+            .attr("y", function (d) { return d3.min(data, function (d) { return y2(d.successRate); }) })
+            .attr("height", function (d) { return 1 })
+            .transition()
+            .duration(1050)
+            .attr("y", function (d) { return y2(d.successRate); });
+
+          svg.selectAll(".chartLineText")
+            .data(data)
+            .enter()
+            .append('text')
+            .attr("class", "chartLineText")
+            .style("color", "#000")
+            .style("text-anchor", "middle")
+            .attr("transform", "translate(" + 30 + ",-2)")
+            .attr("x", function (d) { return x(d.category); })
+            .attr("y", function (d) { return d3.min(data, function (d) { return y2(d.successRate); }) })
+            .text(function (d) { return roundToOne(d.successRate * 100) + "%" })
+            .transition()
+            .duration(1050)
+            .attr("y", function (d) { return y2(d.successRate); });
+
+          svg.selectAll(".barText")
+            .data(data)
+            .enter()
+            .append("text")
+            .attr("class", "barText")
+            .attr("text-anchor", "middle")
+            .attr("transform", "translate(" + x.rangeBand() / 2 + ",-3)")
+            .attr("x", function (d) { return x(d.category); })
+            .text(function (d) { return formatMoney(+d.avgBackers) })
+            .attr("y", function (d) { return y(d.avgBackers) - 10; });
+
+        } else {//This is what is called when the code is called to update by a change in the drop downs.
+          svg.selectAll(".y.axisL").transition().duration(1500).call(yAxis);
+          svg.selectAll(".y.axisR").transition().duration(1500).call(y2Axis);
+
+          svg.selectAll(".chartLineText").
+            data(data)
+            .transition()
+            .duration(1500)
+            .attr("y", function (d) { return y2(d.successRate); })
+            .text(function (d) { return roundToOne(d.successRate * 100) + "%" });
+
+          svg.selectAll(".chartLine")
+            .data(data)
+            .transition()
+            .duration(1500)
+            .attr("y", function (d) { return y2(d.successRate); });
+
+          svg.selectAll(".bar")
+            .data(data)
+            .transition()
+            .duration(1500)
+            .delay(function (d) { return d.category })
+
+            //Notice this delay function, it allows the eye to see all of the changes in the graph without needing to run the animation again,
+            //but it's suttle enough it's hard to notice, but it really makes a difference, your mind is fast but only holds so many things in
+            //short term memory, this delay helps avoid mental hurt, but also by limiting the years to 4 makes it much better
+            // Also the green bars draw in the focus while changing more than the small red lines, this is to mentally make it easier again. (I read to many theory books on this stuff, sorry those that are color blind)
+            .attr("y", function (d) { return y(d.avgBackers); })
+            .attr("height", function (d) { return height - y(d.avgBackers); });
+
+          svg.selectAll(".barText")
+            .data(data)
+            .transition()
+            .duration(500)
+            .attr("y", function (d) { return y(d.avgBackers); })
+            .text(function (d) { return formatMoney(+d.avgBackers) });
+        };
+
+        svg.append("text")
+          .attr("x", width / 2)
+          .attr("y", -10)
+          .attr("text-anchor", "middle")
+          .style("font-size", "16px")
+          .style("text-decoration", "underline")
+          .text("Average number of backers and success rate per project by category");
+        d3.selectAll(".bar")
+          .on("mouseover", function (d) {
+            d3.selectAll(".barText").transition()
+              .duration(500)
+              .delay(80)
+              //This makes the text lables mostly prevent overlap, it's not perfect, but solves more cases than it breaks, and the values are generally always visable
+              .attr("y", function (d) { if (Math.abs(y2(d.successRate) - y(d.avgBackers)) < 10) { if (y(d.avgBackers) - 10 - (y2(d.successRate)) >= 2) { return y(d.avgBackers) - 10 } else { return y(d.avgBackers) + 15 } } else { return y(d.avgBackers) } })
+              .style("visibility", "visible");
+          })
+          .on("mouseout", function (d) {
+            d3.selectAll(".barText").transition()
+              .duration(500)
+              .delay(150)
+              .attr("y", function (d) { return y(d.avgBackers) - 10; })
+              .style("visibility", "hidden");
+          })
+      });
+
+      function type(d) {
+
+        // d.category = +d.category;
+        d.successRate = +d.successRate / 100;
+        d.avgBackers = +d.avgBackers;
+        return d;
+      }
+    };
+  </script>
+</body>
+
+</html>

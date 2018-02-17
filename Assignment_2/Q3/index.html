@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+    body {
+        font: 10px sans-serif;
+    }
+
+    .axis path,
+    .axis line {
+        fill: none;
+        stroke: #000;
+        shape-rendering: crispEdges;
+    }
+
+    .browser text {
+        text-anchor: end;
+    }
+
+    .focus circle {
+        fill: black;
+        stroke: white;
+    }
+
+    .overlay {
+        fill: none;
+        pointer-events: all;
+    }
+</style>
+
+<head>
+    <title>Kickstarter Project Visualisation</title>
+    <script src="../d3.v3.min.js"></script>
+</head>
+
+<body>
+    <select id="categorySelect" style="margin-left: 46px; margin-top: 36px;" onchange="update()">
+        <option value="Hardware">Hardware</option>
+        <option value="Gadgets">Gadgets</option>
+        <option value="Web">Web</option>
+        <option value="Technology">Technology</option>
+        <option value="Flight">Flight</option>
+        <option value="Fabrication Tools ">Fabrication Tools </option>
+        <option value="Sound">Sound</option>
+        <option value="Apps">Apps</option>
+        <option value="Software">Software</option>
+        <option value="DIY Electronics">DIY Electronics</option>
+        <option value="Camera Equipment">Camera Equipment</option>
+        <option value="3D Printing">3D Printing</option>
+        <option value="Space Exploration">Space Exploration</option>
+        <option value="Wearables">Wearables</option>
+        <option value="Robots">Robots</option>
+        <option value="Makerspaces">Makerspaces</option>
+    </select>
+    <div id="tooltip-container"></div>
+
+    <script src="q3.js"></script>
+    <script>
+        var category = "Hardware";
+        displayPlot(category)
+
+        function update(){
+            var category = document.getElementById("categorySelect").value;
+            displayPlot(category)
+        }
+    </script>
+</body>
